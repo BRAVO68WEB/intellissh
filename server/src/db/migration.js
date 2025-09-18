@@ -275,7 +275,6 @@ async function addOIDCSupport() {
       { id: 'oidc_issuer', name: 'OIDC Issuer URL', value: '', category: 'oidc', description: 'OpenID Connect provider issuer URL', is_sensitive: 0 },
       { id: 'oidc_client_id', name: 'OIDC Client ID', value: '', category: 'oidc', description: 'OpenID Connect client identifier', is_sensitive: 0 },
       { id: 'oidc_client_secret', name: 'OIDC Client Secret', value: '', category: 'oidc', description: 'OpenID Connect client secret', is_sensitive: 1 },
-      { id: 'oidc_admin_group_scope', name: 'OIDC Admin Group Scope', value: '', category: 'oidc', description: 'Group claim/scope that grants admin privileges', is_sensitive: 0 },
       { id: 'disabled_signup', name: 'Disable Local Signup', value: 'false', category: 'server', description: 'Disable local user registration', is_sensitive: 0 }
     ];
 

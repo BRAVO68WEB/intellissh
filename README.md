@@ -137,7 +137,6 @@ services:
       # - OIDC_ISSUER=https://your-oidc-provider.com
       # - OIDC_CLIENT_ID=your_client_id
       # - OIDC_CLIENT_SECRET=your_client_secret
-      # - OIDC_ADMIN_GROUP_SCOPE=admin_group_name
       
       # Registration Control
       # - DISABLED_SIGNUP=true  # Disable local registration when using OIDC
@@ -170,7 +169,6 @@ IntelliSSH supports OpenID Connect (OIDC) for enterprise single sign-on integrat
 | `OIDC_ISSUER` | OIDC provider issuer URL | Yes | `https://accounts.google.com` |
 | `OIDC_CLIENT_ID` | OIDC client identifier | Yes | `your-client-id` |
 | `OIDC_CLIENT_SECRET` | OIDC client secret | Yes | `your-client-secret` |
-| `OIDC_ADMIN_GROUP_SCOPE` | Group claim for admin privileges | No | `admin` or `administrators` |
 | `DISABLED_SIGNUP` | Disable local user registration | No | `true` or `false` |
 
 ### Setup Examples
@@ -188,7 +186,6 @@ DISABLED_SIGNUP=true
 OIDC_ISSUER=https://login.microsoftonline.com/your-tenant-id/v2.0
 OIDC_CLIENT_ID=your-azure-client-id
 OIDC_CLIENT_SECRET=your-azure-client-secret
-OIDC_ADMIN_GROUP_SCOPE=admin-group-id
 DISABLED_SIGNUP=true
 ```
 
@@ -197,16 +194,8 @@ DISABLED_SIGNUP=true
 OIDC_ISSUER=https://your-keycloak.com/auth/realms/your-realm
 OIDC_CLIENT_ID=intellissh-client
 OIDC_CLIENT_SECRET=your-keycloak-secret
-OIDC_ADMIN_GROUP_SCOPE=/admin
 DISABLED_SIGNUP=true
 ```
-
-### Admin Group Assignment
-
-When `OIDC_ADMIN_GROUP_SCOPE` is configured:
-- Users in the specified group automatically receive admin privileges
-- Group membership is checked during each login
-- Existing users are promoted to admin (never demoted for security)
 
 ### OIDC Troubleshooting
 
@@ -216,9 +205,7 @@ When `OIDC_ADMIN_GROUP_SCOPE` is configured:
 
 2. **Callback URL mismatch**: Ensure your OIDC provider is configured with the correct callback URL: `https://your-domain.com/api/auth/oidc/callback`
 
-3. **Admin privileges not assigned**: Verify the `OIDC_ADMIN_GROUP_SCOPE` value matches your OIDC provider's group claim format
-
-4. **Users can't login after OIDC setup**: If `DISABLED_SIGNUP=true`, existing local users can still login with username/password
+3. **Users can't login after OIDC setup**: If `DISABLED_SIGNUP=true`, existing local users can still login with username/password
 
 **Debug Steps:**
 ```bash
