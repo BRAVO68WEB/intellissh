@@ -361,4 +361,201 @@ router.get('/stats/connections', async (req, res) => {
   }
 });
 
+// @route   DELETE /api/sessions/bulk/delete
+// @desc    Delete multiple sessions
+// @access  Private
+router.delete('/bulk/delete', async (req, res) => {
+  const { sessionIds } = req.body;
+  const userId = req.user.id;
+
+  if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
+    return res.status(400).json({
+      error: 'sessionIds array is required and must not be empty.'
+    });
+  }
+
+  try {
+    const results = [];
+    const errors = [];
+
+    for (const sessionId of sessionIds) {
+      try {
+        const numericId = parseInt(sessionId);
+        if (isNaN(numericId)) {
+          errors.push({ id: sessionId, error: 'Invalid session ID format' });
+          continue;
+        }
+
+        await sessionService.deleteSession(numericId, userId);
+        results.push({ id: sessionId, status: 'deleted' });
+      } catch (error) {
+        errors.push({ id: sessionId, error: error.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      deleted: results.length,
+      failed: errors.length,
+      results,
+      errors
+    });
+  } catch (error) {
+    console.error('Bulk delete sessions error:', error.message);
+    res.status(500).json({
+      error: 'Internal server error while deleting sessions.'
+    });
+  }
+});
+
+// @route   POST /api/sessions/bulk/duplicate
+// @desc    Duplicate multiple sessions
+// @access  Private
+router.post('/bulk/duplicate', async (req, res) => {
+  const { sessionIds, namePrefix = 'Copy of' } = req.body;
+  const userId = req.user.id;
+
+  if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
+    return res.status(400).json({
+      error: 'sessionIds array is required and must not be empty.'
+    });
+  }
+
+  try {
+    const results = [];
+    const errors = [];
+
+    for (const sessionId of sessionIds) {
+      try {
+        const numericId = parseInt(sessionId);
+        if (isNaN(numericId)) {
+          errors.push({ id: sessionId, error: 'Invalid session ID format' });
+          continue;
+        }
+
+        // Get original session to generate new name
+        const originalSession = await sessionService.getSessionById(numericId, userId);
+        const newName = `${namePrefix} ${originalSession.name}`;
+
+        const duplicatedSession = await sessionService.duplicateSession(numericId, userId, newName);
+        results.push({ originalId: sessionId, newSession: duplicatedSession, status: 'duplicated' });
+      } catch (error) {
+        errors.push({ id: sessionId, error: error.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      duplicated: results.length,
+      failed: errors.length,
+      results,
+      errors
+    });
+  } catch (error) {
+    console.error('Bulk duplicate sessions error:', error.message);
+    res.status(500).json({
+      error: 'Internal server error while duplicating sessions.'
+    });
+  }
+});
+
+// @route   POST /api/sessions/bulk/test
+// @desc    Test connections for multiple sessions
+// @access  Private
+router.post('/bulk/test', async (req, res) => {
+  const { sessionIds } = req.body;
+  const userId = req.user.id;
+
+  if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
+    return res.status(400).json({
+      error: 'sessionIds array is required and must not be empty.'
+    });
+  }
+
+  try {
+    const results = [];
+
+    for (const sessionId of sessionIds) {
+      try {
+        const numericId = parseInt(sessionId);
+        if (isNaN(numericId)) {
+          results.push({ id: sessionId, success: false, error: 'Invalid session ID format' });
+          continue;
+        }
+
+        const sessionData = await sessionService.getSessionWithCredentials(numericId, userId);
+        const testResult = await sshService.testConnection(sessionData);
+        
+        results.push({
+          id: sessionId,
+          name: sessionData.name,
+          hostname: sessionData.hostname,
+          port: sessionData.port,
+          username: sessionData.username,
+          success: testResult.success,
+          message: testResult.message,
+          error: null
+        });
+      } catch (error) {
+        results.push({
+          id: sessionId,
+          success: false,
+          error: error.message,
+          message: null
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.length - successCount;
+
+    res.json({
+      success: true,
+      tested: results.length,
+      successful: successCount,
+      failed: failCount,
+      results
+    });
+  } catch (error) {
+    console.error('Bulk test sessions error:', error.message);
+    res.status(500).json({
+      error: 'Internal server error while testing sessions.'
+    });
+  }
+});
+
+// @route   GET /api/sessions/export
+// @desc    Export sessions for backup/migration
+// @access  Private
+router.get('/export', async (req, res) => {
+  const userId = req.user.id;
+  
+  try {
+    const sessions = await sessionService.getSessionsByUserId(userId);
+    
+    // Remove sensitive data for export (credentials handled separately)
+    const exportData = sessions.map(session => ({
+      name: session.name,
+      hostname: session.hostname,
+      port: session.port,
+      username: session.username,
+      credential_id: session.credential_id,
+      created_at: session.created_at,
+      updated_at: session.updated_at
+    }));
+
+    res.json({
+      success: true,
+      export_date: new Date().toISOString(),
+      user_id: userId,
+      sessions: exportData
+    });
+  } catch (error) {
+    console.error('Export sessions error:', error.message);
+    res.status(500).json({
+      error: 'Internal server error while exporting sessions.'
+    });
+  }
+});
+
 module.exports = router;
