@@ -90,6 +90,9 @@ async function runMigration() {
     // Add custom API settings if they don't exist
     await addCustomApiSettings();
     await addTotpToUsersMigration();
+    
+    // Add OIDC support
+    await addOIDCSupport();
   } catch (error) {
     console.error('Migration failed:', error);
   }
@@ -233,6 +236,68 @@ async function insertDefaultSettings() {
         [setting.id, setting.name, setting.value, setting.category, setting.description, setting.is_sensitive]
       );
     }
+  }
+}
+
+async function addOIDCSupport() {
+  console.log('Starting OIDC support migration...');
+
+  try {
+    // Check if oidc_id column exists in users table
+    const oidcIdExists = await db.get("SELECT name FROM pragma_table_info('users') WHERE name='oidc_id'");
+    
+    if (!oidcIdExists) {
+      console.log('Adding oidc_id column to users table...');
+      await db.run('ALTER TABLE users ADD COLUMN oidc_id TEXT');
+      console.log('oidc_id column added to users table.');
+      
+      // Create index for uniqueness after adding the column
+      console.log('Creating unique index on oidc_id column...');
+      await db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc_id ON users(oidc_id) WHERE oidc_id IS NOT NULL');
+      console.log('Unique index created on oidc_id column.');
+    } else {
+      console.log('oidc_id column already exists in users table.');
+    }
+
+    // Check if email column exists in users table
+    const emailExists = await db.get("SELECT name FROM pragma_table_info('users') WHERE name='email'");
+    
+    if (!emailExists) {
+      console.log('Adding email column to users table...');
+      await db.run('ALTER TABLE users ADD COLUMN email TEXT');
+      console.log('email column added to users table.');
+    } else {
+      console.log('email column already exists in users table.');
+    }
+
+    // Add OIDC settings if they don't exist
+    const oidcSettings = [
+      { id: 'oidc_issuer', name: 'OIDC Issuer URL', value: '', category: 'oidc', description: 'OpenID Connect provider issuer URL', is_sensitive: 0 },
+      { id: 'oidc_client_id', name: 'OIDC Client ID', value: '', category: 'oidc', description: 'OpenID Connect client identifier', is_sensitive: 0 },
+      { id: 'oidc_client_secret', name: 'OIDC Client Secret', value: '', category: 'oidc', description: 'OpenID Connect client secret', is_sensitive: 1 },
+      { id: 'oidc_admin_group_scope', name: 'OIDC Admin Group Scope', value: '', category: 'oidc', description: 'Group claim/scope that grants admin privileges', is_sensitive: 0 },
+      { id: 'disabled_signup', name: 'Disable Local Signup', value: 'false', category: 'server', description: 'Disable local user registration', is_sensitive: 0 }
+    ];
+
+    for (const setting of oidcSettings) {
+      const existingSetting = await db.get('SELECT id FROM settings WHERE id = ?', [setting.id]);
+      
+      if (!existingSetting) {
+        await db.run(
+          'INSERT INTO settings (id, name, value, category, description, is_sensitive) VALUES (?, ?, ?, ?, ?, ?)',
+          [setting.id, setting.name, setting.value, setting.category, setting.description, setting.is_sensitive]
+        );
+        console.log(`Added ${setting.name} setting.`);
+      } else {
+        console.log(`${setting.name} setting already exists.`);
+      }
+    }
+
+    console.log('OIDC support migration completed successfully');
+
+  } catch (error) {
+    console.error('OIDC support migration error:', error.message);
+    throw error;
   }
 }
 

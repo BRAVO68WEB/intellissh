@@ -12,6 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   const tempUserFor2fa = ref(null)
   const totpSecret = ref(null)
   const otpauthUrl = ref(null)
+  const oidcConfig = ref({ enabled: false, loginUrl: null })
 
   // Configure axios defaults
   if (token.value) {
@@ -338,11 +339,46 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // OIDC Configuration
+  const checkOidcConfig = async () => {
+    try {
+      const response = await axios.get('/api/auth/oidc/config')
+      oidcConfig.value = response.data
+      return oidcConfig.value
+    } catch (err) {
+      console.error('Failed to check OIDC config:', err)
+      oidcConfig.value = { enabled: false, loginUrl: null }
+      return oidcConfig.value
+    }
+  }
+
+  // Handle OIDC token from URL
+  const handleOidcToken = (tokenFromUrl) => {
+    if (tokenFromUrl) {
+      token.value = tokenFromUrl
+      localStorage.setItem('token', tokenFromUrl)
+      axios.defaults.headers.common['Authorization'] = `Bearer ${tokenFromUrl}`
+      return fetchUser() // Fetch user data with the new token
+    }
+    return Promise.resolve()
+  }
+
   // Initialize store
   const init = async () => {
-    if (token.value) {
+    // Check for OIDC token in URL parameters first
+    const urlParams = new URLSearchParams(window.location.search)
+    const tokenFromUrl = urlParams.get('token')
+    
+    if (tokenFromUrl) {
+      // Clear token from URL for security
+      window.history.replaceState({}, document.title, window.location.pathname)
+      await handleOidcToken(tokenFromUrl)
+    } else if (token.value) {
       await fetchUser()
     }
+    
+    // Check OIDC configuration
+    await checkOidcConfig()
   }
 
   return {
@@ -355,6 +391,7 @@ export const useAuthStore = defineStore('auth', () => {
     tempUserFor2fa,
     totpSecret,
     otpauthUrl,
+    oidcConfig,
     
     // Getters
     isAuthenticated,
@@ -385,6 +422,8 @@ export const useAuthStore = defineStore('auth', () => {
     verify2faCode,
     enable2fa,
     disable2fa,
+    checkOidcConfig,
+    handleOidcToken,
     init
   }
 })

@@ -14,8 +14,23 @@ class AuthService {
 
   async registerUser(username, password) {
     try {
-      // Check if registration is enabled from settings
+      // Check if local signup is disabled (environment variable takes precedence)
+      const disabledSignupEnv = process.env.DISABLED_SIGNUP?.toLowerCase();
+      if (disabledSignupEnv === 'true' || disabledSignupEnv === '1') {
+        throw new Error('Local user registration is disabled');
+      }
+
+      // Check if signup is disabled from settings
       const settingsService = require('./settingsService');
+      const disabledSignupSetting = await settingsService.getSettingValue('disabled_signup');
+      
+      if (disabledSignupSetting === 'true' || 
+          disabledSignupSetting === true || 
+          disabledSignupSetting?.toLowerCase?.() === 'true') {
+        throw new Error('Local user registration is disabled');
+      }
+
+      // Check if registration is enabled from settings (existing check)
       const registrationEnabled = await settingsService.getSettingValue('registration_enabled');
       
       console.log('Registration enabled setting:', registrationEnabled, typeof registrationEnabled);
@@ -449,6 +464,30 @@ class AuthService {
       return { success: true, message: 'Password has been reset successfully' };
     } catch (error) {
       console.error('Password reset error:', error.message);
+      throw error;
+    }
+  }
+
+  async generateTokenForUser(user) {
+    try {
+      if (!user || !user.id) {
+        throw new Error('Invalid user object');
+      }
+
+      // Generate JWT token with role included
+      const token = jwt.sign(
+        { 
+          id: user.id, 
+          username: user.username,
+          role: user.role || 'user'
+        },
+        this.jwtSecret,
+        { expiresIn: this.jwtExpiresIn }
+      );
+
+      return token;
+    } catch (error) {
+      console.error('Generate token error:', error.message);
       throw error;
     }
   }
