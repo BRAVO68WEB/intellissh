@@ -2,6 +2,7 @@ const { Client } = require('ssh2');
 const pty = require('node-pty');
 const { EventEmitter } = require('events');
 const llmService = require('./llmService');
+const activityLogService = require('./activityLogService');
 
 class SSHService extends EventEmitter {
   constructor() {
@@ -28,6 +29,23 @@ class SSHService extends EventEmitter {
         conn.on('ready', () => {
           clearTimeout(connectionTimeout);
           console.log(`SSH connection established: ${connectionId}`);
+          
+          // Log successful connection
+          activityLogService.logActivity(
+            id, 
+            socket.userId, 
+            activityLogService.ACTIVITY_TYPES.CONNECT,
+            {
+              hostname,
+              port,
+              username,
+              connection_id: connectionId,
+              auth_method: privateKey ? 'private_key' : 'password'
+            },
+            connectionId,
+            socket.handshake?.address,
+            socket.handshake?.headers?.['user-agent']
+          );
           
           // Request a shell
           conn.shell({
@@ -61,17 +79,77 @@ class SSHService extends EventEmitter {
         conn.on('error', (err) => {
           clearTimeout(connectionTimeout);
           console.error(`SSH connection error for ${connectionId}:`, err.message);
+          
+          // Log connection error
+          activityLogService.logActivity(
+            id, 
+            socket.userId, 
+            activityLogService.ACTIVITY_TYPES.ERROR,
+            {
+              error: err.message,
+              hostname,
+              port,
+              username,
+              connection_id: connectionId
+            },
+            connectionId,
+            socket.handshake?.address,
+            socket.handshake?.headers?.['user-agent']
+          );
+          
           this.cleanup(connectionId);
           reject(err);
         });
 
         conn.on('end', () => {
           console.log(`SSH connection ended: ${connectionId}`);
+          
+          // Log disconnection
+          const connection = this.connections.get(connectionId);
+          if (connection) {
+            activityLogService.logActivity(
+              id, 
+              socket.userId, 
+              activityLogService.ACTIVITY_TYPES.DISCONNECT,
+              {
+                hostname,
+                port,
+                username,
+                connection_id: connectionId,
+                disconnect_reason: 'connection_ended'
+              },
+              connectionId,
+              socket.handshake?.address,
+              socket.handshake?.headers?.['user-agent']
+            );
+          }
+          
           this.cleanup(connectionId);
         });
 
         conn.on('close', () => {
           console.log(`SSH connection closed: ${connectionId}`);
+          
+          // Log disconnection if not already logged
+          const connection = this.connections.get(connectionId);
+          if (connection) {
+            activityLogService.logActivity(
+              id, 
+              socket.userId, 
+              activityLogService.ACTIVITY_TYPES.DISCONNECT,
+              {
+                hostname,
+                port,
+                username,
+                connection_id: connectionId,
+                disconnect_reason: 'connection_closed'
+              },
+              connectionId,
+              socket.handshake?.address,
+              socket.handshake?.headers?.['user-agent']
+            );
+          }
+          
           this.cleanup(connectionId);
         });
 
@@ -272,6 +350,22 @@ class SSHService extends EventEmitter {
               if (!connection.lastCommands) connection.lastCommands = [];
               connection.lastCommands.push(commandText);
               if (connection.lastCommands.length > 10) connection.lastCommands.shift();
+              
+              // Log command execution
+              activityLogService.logActivity(
+                connection.sessionData.id,
+                socket.userId,
+                activityLogService.ACTIVITY_TYPES.COMMAND,
+                {
+                  command: commandText,
+                  hostname: connection.sessionData.hostname,
+                  username: connection.sessionData.username,
+                  connection_id: connectionId
+                },
+                connectionId,
+                socket.handshake?.address,
+                socket.handshake?.headers?.['user-agent']
+              );
               
               // Mark that a command is now running
               connection.commandRunning = true;

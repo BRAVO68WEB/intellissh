@@ -3,6 +3,7 @@ const { addCustomApiSettings } = require('./customApiMigration');
 const { createCredentialsTable } = require('./createCredentialsTableMigration');
 const { addCredentialIdToSessionsTable } = require('./addCredentialIdToSessionsMigration');
 const addTotpToUsersMigration = require('./addTotpToUsersMigration');
+const { createActivityLogsTable } = require('./createActivityLogsMigration');
 
 async function runMigration() {
   try {
@@ -10,6 +11,9 @@ async function runMigration() {
     await createCredentialsTable();
     // Run migration to add credential_id to sessions table
     await addCredentialIdToSessionsTable();
+    
+    // Create activity logs table
+    await createActivityLogsTable();
 
     // Check if console_snapshot column exists in sessions table
     const tableInfo = await db.all("PRAGMA table_info(sessions)");
