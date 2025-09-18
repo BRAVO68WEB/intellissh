@@ -470,6 +470,7 @@ class AuthService {
 
   async generateTokenForUser(user) {
     try {
+      console.log('Generating token for user:', user);
       if (!user || !user.id) {
         throw new Error('Invalid user object');
       }

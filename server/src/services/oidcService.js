@@ -28,7 +28,10 @@ class OIDCService {
         clientSecret: oidcClientSecret,
         callbackURL: '/api/auth/oidc/callback',
         scope: ['openid', 'profile', 'email'],
-        skipUserProfile: false
+        skipUserProfile: false,
+        authorizationURL: `${oidcIssuer}/auth`,
+        tokenURL: `${oidcIssuer}/token`,
+        userInfoURL: `${oidcIssuer}/me`,
       }, this.handleOIDCAuth.bind(this));
 
       passport.use('oidc', this.strategy);
@@ -62,6 +65,7 @@ class OIDCService {
       console.log('Profile:', JSON.stringify(profile, null, 2));
 
       const { id: externalId, displayName, emails, _json } = profile;
+
       const email = emails && emails.length > 0 ? emails[0].value : null;
       const username = displayName || email || externalId;
 
@@ -75,19 +79,7 @@ class OIDCService {
         [externalId, email]
       );
 
-      const adminGroupScope = process.env.OIDC_ADMIN_GROUP_SCOPE;
       let isAdmin = false;
-
-      // Check if user should be admin based on group membership
-      if (adminGroupScope && _json) {
-        // Check for group membership in various common claim locations
-        const groups = _json.groups || _json[adminGroupScope] || _json.group_membership || [];
-        if (Array.isArray(groups)) {
-          isAdmin = groups.includes(adminGroupScope);
-        } else if (typeof groups === 'string') {
-          isAdmin = groups === adminGroupScope;
-        }
-      }
 
       if (user) {
         // Update existing user
@@ -112,7 +104,7 @@ class OIDCService {
         );
 
         user = {
-          id: result.lastID,
+          id: result.id,
           username,
           email,
           oidc_id: externalId,

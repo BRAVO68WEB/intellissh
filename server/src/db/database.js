@@ -134,7 +134,8 @@ Please log in and change this password immediately!
         role TEXT DEFAULT "user",
         reset_token TEXT,
         reset_token_expires DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `;
 
