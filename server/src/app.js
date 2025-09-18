@@ -6,6 +6,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const passport = require('passport');
+const session = require('express-session');
 
 // Import services and middleware
 const db = require('./db/database');
@@ -90,6 +92,21 @@ const generalLimiter = rateLimit({
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Session middleware for passport (only needed for OIDC)
+app.use(session({
+  secret: process.env.JWT_SECRET || 'default_secret_please_change',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 10 * 60 * 1000 // 10 minutes (just for OIDC flow)
+  }
+}));
+
+// Initialize passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -190,6 +207,8 @@ const startServer = async () => {
     const llmService = require('./services/llmService');
     console.log('Attempting to require sessionService...');
     const sessionService = require('./services/sessionService');
+    console.log('Attempting to require oidcService...');
+    const oidcService = require('./services/oidcService');
 
     console.log('Initializing services in parallel...');
     await Promise.all([
@@ -218,6 +237,16 @@ const startServer = async () => {
         } catch (e) {
           console.error('Error initializing session service:', e);
           throw e;
+        }
+      })(),
+      (async () => {
+        try {
+          await oidcService.init();
+          console.log('OIDC service initialized.');
+        } catch (e) {
+          console.error('Error initializing OIDC service:', e);
+          // Don't throw error for OIDC as it's optional
+          console.log('OIDC service initialization failed, continuing without OIDC support.');
         }
       })()
     ]);

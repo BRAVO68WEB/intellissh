@@ -20,6 +20,22 @@ services:
       - CORS_ORIGIN=http://localhost:8080
       - RATE_LIMIT_WINDOW_MS=900000
       - RATE_LIMIT_MAX_REQUESTS=100
+      
+      # OIDC/SSO Configuration (Optional)
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_ADMIN_GROUP_SCOPE=${OIDC_ADMIN_GROUP_SCOPE:-}
+      
+      # Registration Control
+      - DISABLED_SIGNUP=${DISABLED_SIGNUP:-false}
+      
+      # LLM Configuration (Optional)
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-3.5-turbo}
+      - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2}
     restart: unless-stopped
     networks:
       - webssh-network

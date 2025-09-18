@@ -2,6 +2,8 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const authService = require('../services/authService');
 const { authenticateToken } = require('../middleware/authMiddleware');
+const oidcService = require('../services/oidcService');
+const passport = require('passport');
 
 const router = express.Router();
 
@@ -550,5 +552,62 @@ function validateEmail(email) {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return re.test(String(email).toLowerCase());
 }
+
+// @route   GET /api/auth/oidc/config
+// @desc    Get OIDC configuration status
+// @access  Public
+router.get('/oidc/config', (req, res) => {
+  try {
+    res.json({
+      enabled: oidcService.isEnabled(),
+      loginUrl: oidcService.isEnabled() ? oidcService.getAuthURL() : null
+    });
+  } catch (error) {
+    console.error('OIDC config error:', error.message);
+    res.json({
+      enabled: false,
+      loginUrl: null
+    });
+  }
+});
+
+// @route   GET /api/auth/oidc/login
+// @desc    Initiate OIDC login
+// @access  Public
+router.get('/oidc/login', (req, res, next) => {
+  if (!oidcService.isEnabled()) {
+    return res.status(400).json({
+      error: 'OIDC authentication is not configured'
+    });
+  }
+
+  passport.authenticate('oidc')(req, res, next);
+});
+
+// @route   GET /api/auth/oidc/callback
+// @desc    OIDC callback handler
+// @access  Public
+router.get('/oidc/callback', 
+  passport.authenticate('oidc', { 
+    failureRedirect: '/login?error=oidc_failed',
+    session: false
+  }),
+  async (req, res) => {
+    try {
+      // Generate JWT token for the authenticated user
+      const token = await authService.generateTokenForUser(req.user);
+      
+      // Redirect to frontend with token
+      const redirectUrl = process.env.NODE_ENV === 'production' 
+        ? `/?token=${token}` 
+        : `http://localhost:8080/?token=${token}`;
+      
+      res.redirect(redirectUrl);
+    } catch (error) {
+      console.error('OIDC callback error:', error.message);
+      res.redirect('/login?error=token_generation_failed');
+    }
+  }
+);
 
 module.exports = router;
