@@ -46,6 +46,8 @@ class SSHKeyService {
         args.splice(2, 0, '-b', actualKeySize.toString());
       }
 
+      console.log("args:", args)
+
       // Execute ssh-keygen
       await this.executeCommand('ssh-keygen', args);
 
@@ -232,7 +234,7 @@ class SSHKeyService {
    */
   async isSSHKeygenAvailable() {
     try {
-      await this.executeCommand('ssh-keygen', ['-h']);
+      await this.executeCommand('which', ['ssh-keygen']);
       return true;
     } catch (error) {
       return false;

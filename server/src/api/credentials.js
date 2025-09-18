@@ -188,6 +188,8 @@ router.post('/generate-key', authenticateToken, async (req, res) => {
   try {
     // Check if ssh-keygen is available, otherwise use fallback
     const hasSSHKeygen = await sshKeyService.isSSHKeygenAvailable();
+
+    console.log("hasSSHKeygen:", hasSSHKeygen)
     
     let keyPair;
     if (hasSSHKeygen) {
