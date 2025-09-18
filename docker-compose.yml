@@ -9,4 +9,25 @@ services:
     volumes:
       # Mount for persistent backend data (SQLite DB, session info, etc.)
       - ./data:/app/server/data
+    environment:
+      # Basic Configuration
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_change_in_production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-your_32_byte_hex_encryption_key_change_in_production}
+      
+      # OIDC/SSO Configuration (Optional)
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_ADMIN_GROUP_SCOPE=${OIDC_ADMIN_GROUP_SCOPE:-}
+      
+      # Registration Control
+      - DISABLED_SIGNUP=${DISABLED_SIGNUP:-false}
+      
+      # LLM Configuration (Optional)
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-3.5-turbo}
+      - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2}
     restart: unless-stopped
